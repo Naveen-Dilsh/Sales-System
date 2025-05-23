@@ -5,10 +5,9 @@ import { BarChart, LineChart, PieChart, Users } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DashboardLayout from "@/components/dashboard-layout"
-import { orderAPI } from "@/lib/api"
+import { orderAPI, userAPI } from "@/lib/api"
 import { toast } from "sonner"
 
-// Update interface to match your actual API response
 interface OrderSummary {
   order_id: number
   agent_id: number
@@ -30,6 +29,8 @@ interface Shop {
   name: string
   address: string
   phone_number: string
+  sales_rep_id: number
+  sales_rep_name?: string
 }
 
 export default function SalesRepDashboard() {
@@ -70,20 +71,11 @@ export default function SalesRepDashboard() {
         console.log("Filtered orders for sales rep:", filteredOrders)
         setOrders(filteredOrders)
 
-        // Extract unique shops from filtered orders
-        const uniqueShops = new Map()
-        filteredOrders.forEach((order) => {
-          if (order.ShopName && !uniqueShops.has(order.ShopName)) {
-            uniqueShops.set(order.ShopName, {
-              shop_id: uniqueShops.size + 1,
-              name: order.ShopName,
-              address: "",
-              phone_number: "",
-            })
-          }
-        })
+        // Fetch shops directly using the sales rep ID
+        const shopsData = await userAPI.getShopsBySalesRep(salesRepId)
+        console.log("Shops data for sales rep:", shopsData)
+        setShops(shopsData)
 
-        setShops(Array.from(uniqueShops.values()))
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
         toast.error("Failed to load dashboard data", {
@@ -232,7 +224,7 @@ export default function SalesRepDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Shops in Your Territory</CardTitle>
-                <CardDescription>Shops that have placed orders through you</CardDescription>
+                <CardDescription>Shops assigned to you as a sales representative</CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -242,8 +234,14 @@ export default function SalesRepDashboard() {
                     {shops.map((shop) => (
                       <div key={shop.shop_id} className="rounded-md border p-4">
                         <h3 className="font-medium">{shop.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          <strong>Address:</strong> {shop.address || "Not provided"}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          Orders: {orders.filter((o) => o.ShopName === shop.name).length}
+                          <strong>Phone:</strong> {shop.phone_number || "Not provided"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Orders:</strong> {orders.filter((o) => o.ShopName === shop.name).length}
                         </p>
                       </div>
                     ))}
